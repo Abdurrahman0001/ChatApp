@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .chat-window {
+            height: 60vh;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            padding: 10px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+        }
+
+        .username {
+            font-weight: bold;
+        }
+
+        .chat-input {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container my-4">
+    <h2 class="text-center">Real-Time Chat</h2>
+
+    <!-- Chat Window -->
+    <div class="chat-window" id="chatWindow">
+        <!-- Messages will appear here -->
+    </div>
+
+    <!-- Chat Input -->
+    <div class="chat-input">
+        <input type="text" class="form-control" id="messageInput" placeholder="Type your message here...">
+        <button class="btn btn-primary" id="sendButton">Send</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // WebSocket connection setup
+        const socket = new SockJS('/chat');
+        const stompClient = Stomp.over(socket);
+
+        // Get DOM elements
+        const chatWindow = document.getElementById('chatWindow');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // Connect to the WebSocket
+        stompClient.connect({}, () => {
+            console.log("Connected to WebSocket");
+
+            // Subscribe to the /topic/messages channel
+            stompClient.subscribe('/topic/messages', (message) => {
+                const chatMessage = JSON.parse(message.body);
+                appendMessage(chatMessage);
+            });
+        });
+
+        // Send message when the button is clicked
+        sendButton.addEventListener('click', sendMessage);
+
+        // Send message when Enter key is pressed
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Function to send a message
+        function sendMessage() {
+            const content = messageInput.value.trim();
+            if (content) {
+                const chatMessage = {
+                    sender: "You", // Replace with actual username if available
+                    content: content,
+                    timestamp: new Date().toLocaleTimeString()
+                };
+
+                stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage));
+                messageInput.value = ''; // Clear the input field
+            }
+        }
+
+        // Function to append a message to the chat window
+        function appendMessage(chatMessage) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+
+            messageDiv.innerHTML = `
+                <span class="username text-primary">${chatMessage.sender}:</span>
+                <span class="text">${chatMessage.content}</span>
+                <span class="time float-end">${chatMessage.timestamp}</span>
+            `;
+
+            chatWindow.appendChild(messageDiv);
+
+            // Auto-scroll to the bottom
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+    });
+</script>
+</body>
+</html>
